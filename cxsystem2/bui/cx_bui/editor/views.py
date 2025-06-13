@@ -145,7 +145,7 @@ def simulate(request):
         if request.is_secure():
             auth_response = is_authorized(request)
             if auth_response.ok:
-                userid = auth_response.json()['id']
+                userid = auth_response.json()['login']
             else:
                 return HttpResponse(json.dumps({'authorized': 'false'}), content_type="application/json")
             infologger.info("User {} started simulation".format(userid))
@@ -200,7 +200,7 @@ def load_example(request):
         auth_response = is_authorized(request)
         if not auth_response.ok:
             return HttpResponse(json.dumps({'authorized':'false'}), content_type="application/json")
-        userid = auth_response.json()['id']
+        userid = auth_response.json()['login']
         infologger.info("User {} loaded example file {}".format(userid,request.body.decode('utf-8')))
 
     data = {'authorized':'true'}
@@ -224,7 +224,7 @@ def download_workspace(request):
         userid = ''
         auth_response = is_authorized(request)
         if auth_response.ok:
-            userid = auth_response.json()['id']
+            userid = auth_response.json()['login']
         else:
             return HttpResponse(json.dumps({'authorized': 'false'}), content_type="application/json")
 
@@ -252,7 +252,7 @@ def download_files(request):
     if request.is_secure():
         auth_response = is_authorized(request)
         if auth_response.ok:
-            userid = auth_response.json()['id']
+            userid = auth_response.json()['login']
         else:
             return HttpResponse(json.dumps({'authorized': 'false'}), content_type="application/json")
         cx_workspace_path = get_workspace_path()
@@ -314,7 +314,7 @@ def ls_workspace(request):
     if request.is_secure():
         auth_response = is_authorized(request)
         if auth_response.ok:
-            userid = auth_response.json()['id']
+            userid = auth_response.json()['login']
         else:
             return HttpResponse(json.dumps({'authorized': 'false'}), content_type="application/json")
         infologger.info("User {} listed workspace files".format(userid))
@@ -356,7 +356,7 @@ def sim_output(request):
     if request.is_secure():
         auth_response = is_authorized(request)
         if auth_response.ok:
-            userid = auth_response.json()['id']
+            userid = auth_response.json()['login']
         else:
             return HttpResponse(json.dumps({'authorized': 'false'}), content_type="application/json")
         infologger.info("User {} checked simulation status".format(userid))
@@ -379,7 +379,7 @@ def delete_all(request):
     if request.is_secure():
         auth_response = is_authorized(request)
         if auth_response.ok:
-            userid = auth_response.json()['id']
+            userid = auth_response.json()['login']
         else:
             return HttpResponse(json.dumps({'authorized': 'false'}), content_type="application/json")
         infologger.info("User {} cleaned workspace".format(userid))
@@ -395,7 +395,7 @@ def visualize(request):
     if request.is_secure():
         auth_response = is_authorized(request)
         if auth_response.ok:
-            userid = auth_response.json()['id']
+            userid = auth_response.json()['login']
         else:
             return HttpResponse(json.dumps({'authorized': 'false'}), content_type="application/json")
         cx_workspace_path = get_workspace_path()
