@@ -586,3 +586,22 @@ function Show(ShowID)
   ShowID.classList.add("hide-for-medium-down");
 
 }
+
+// Handle GitHub OAuth token from URL
+function handleGitHubAuth() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const accessToken = urlParams.get('access_token');
+    
+    if (accessToken) {
+        // Store token for API calls
+        localStorage.setItem('github_token', accessToken);
+        
+        // Clean up URL
+        window.history.replaceState({}, document.title, window.location.pathname);
+        
+        console.log('GitHub authentication successful');
+    }
+}
+
+// Call on page load
+document.addEventListener('DOMContentLoaded', handleGitHubAuth);

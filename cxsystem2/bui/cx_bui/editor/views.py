@@ -41,7 +41,7 @@ def is_authorized(request):
             session_token = ''
         else:
             session_token = session_token[1]
-    user_api = "https://services.humanbrainproject.eu/idm/v1/api/user/me"
+    user_api = "https://api.github.com/user"
     headers = {"Authorization": 'Bearer ' + session_token}
     reply = requests.get(user_api, headers=headers)
     return reply
@@ -332,7 +332,7 @@ def sim_status(request):
     if request.is_secure():
         auth_response = is_authorized(request)
         if auth_response.ok:
-            userid = auth_response.json()['id']
+            userid = auth_response.json()['login']
         else:
             return HttpResponse(json.dumps({'authorized': 'false'}), content_type="application/json")
         cx_workspace_path = get_workspace_path()
