@@ -451,11 +451,9 @@ class CxSystem:
         print(" -  Cortical Module initialization Done.")
 
     try:
-        # Local
-        from cxsystem2.bui import bui
-
         @staticmethod
         def run_bui(ssl=False, port=None, nobrowser=False):
+            from cxsystem2.bui import bui
             bui.RunServer(ssl=ssl, port=port, nobrowser=nobrowser)
 
     except ImportError:
