@@ -2838,10 +2838,6 @@ class CxSystem:
             spikes_name = "GEN_SP"  # Not used elsewhere in this namespace?
             time_name = "GEN_TI"
             sg_name = "GEN"
-
-            # Create persistent namespace
-            exec_namespace = locals().copy()
-
             # If spike times unit is Hz, add period keyword for repetitive firing starting at t=half the period.
             if spike_times_unit == "Hz":
                 assert (
@@ -2855,9 +2851,8 @@ class CxSystem:
                 else:
                     period = period_init
                 period_str = "GEN_PE = %s*second" % (period)
-                # NUMBER 1 pt 1
                 exec(
-                    period_str, globals(), exec_namespace
+                    period_str, globals(), locals()
                 )  # running the syntax for period of the input neuron group
                 # times give the start of first spike, which must be less than the period, thus the 0.5/[period in Hz] below
                 times_str = "GEN_TI = b2.repeat(0.5/%s,%s)*%s" % (
@@ -2870,9 +2865,8 @@ class CxSystem:
                     eval(spike_times_unit) / second
                 ), "Unknown unit, should be second, ms etc, or Hz"
                 period_str = "GEN_PE = 0*second"  # default
-                # NUMBER 1 pt 2
                 exec(
-                    period_str, globals(), exec_namespace
+                    period_str, globals(), locals()
                 )  # running the syntax for period of the input neuron group
                 spike_times_array_nodim = spike_times_ / eval(spike_times_unit)
                 array_string = np.array2string(
@@ -2883,32 +2877,23 @@ class CxSystem:
                     number_of_active_neurons,
                     spike_times_unit,
                 )
-            # NUMBER 2
-            exec(times_str, globals(), exec_namespace)  # running the string
+            exec(times_str, globals(), locals())  # running the string
             # containing the syntax for time indices in the input neuron group.
             spikes_str = "GEN_SP=b2.tile(%s,%d)" % (
                 active_neurons_str,
                 b2.asarray(spike_times_list).size,
             )  # len(spike_times_) should be 1 if unit is Hz
-
-            print(f"DEBUG: active_neurons_str = {active_neurons_str}")
-            print(f"DEBUG: spike_times_list = {spike_times_list}")
-            print(f"DEBUG: spike_times_list.size = {b2.asarray(spike_times_list).size}")
-            print(f"DEBUG: spikes_str = '{spikes_str}'")
-
-            # NUMBER 3
-            exec(spikes_str, globals(), exec_namespace)  # running the string
+            exec(spikes_str, globals(), locals())  # running the string
             sg_str = (
                 "GEN = b2.SpikeGeneratorGroup(%s, GEN_SP, GEN_TI, period=GEN_PE)"
                 % number_of_neurons
             )
-            # NUMBER 4
-            exec(sg_str, globals(), exec_namespace)  # running the string
+            exec(sg_str, globals(), locals())  # running the string
             # containing the syntax for creating the b2.SpikeGeneratorGroup() based on the input .mat file.
 
-            setattr(self.main_module, sg_name, eval(sg_name, globals(), exec_namespace))
+            setattr(self.main_module, sg_name, eval(sg_name))
             try:
-                setattr(self.Cxmodule, sg_name, eval(sg_name, globals(), exec_namespace))
+                setattr(self.Cxmodule, sg_name, eval(sg_name))
             except AttributeError:
                 pass
 
