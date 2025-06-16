@@ -9,6 +9,9 @@ under the terms of the GNU General Public License.
 Copyright 2017 Vafa Andalibi, Henri Hokkanen and Simo Vanni.
 """
 
+import warnings
+warnings.filterwarnings("ignore", message=".*get_vc_env is private.*")
+
 # Built-in
 import ast
 import builtins
