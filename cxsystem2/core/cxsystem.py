@@ -1646,10 +1646,10 @@ class CxSystem:
                 self.monitor_name_bank[object_name].append(mon_name)
                 mon_str += ")"
                 # create the Monitor() object
-                exec(mon_str, globals())
-                setattr(self.main_module, mon_name, eval(mon_name, globals()))
+                exec(mon_str)
+                setattr(self.main_module, mon_name, eval(mon_name))
                 try:
-                    setattr(self.Cxmodule, mon_name, eval(mon_name, globals()))
+                    setattr(self.Cxmodule, mon_name, eval(mon_name))
                 except AttributeError:
                     pass
                 self.monitor_idx += 1
@@ -2760,10 +2760,6 @@ class CxSystem:
             #     self.thr.join()
 
         def VPM(self):  # ventral posteromedial (VPM) thalamic nucleus
-
-            shared_namespace = dict(globals())
-            shared_namespace.update(locals())
-
             spike_times_idx = next(
                 iter(
                     self.current_parameters_s[
@@ -2795,11 +2791,11 @@ class CxSystem:
                 active_neurons_str = "arange(0,%s,1)" % (number_of_neurons)
 
             tmp_namespace = {"spike_times_": []}
-            shared_namespace.update(locals())
             exec(
                 'tmp_namespace ["spike_times_"] = spike_times_list * %s'
                 % spike_times_unit,
-                shared_namespace
+                locals(),
+                globals(),
             )
             spike_times_ = tmp_namespace["spike_times_"]
 
@@ -2811,7 +2807,7 @@ class CxSystem:
                 )
             )
             number_of_neurons = self.current_values_s[num_of_neurons_idx]
-            number_of_active_neurons = len(eval(active_neurons_str, shared_namespace))
+            number_of_active_neurons = len(eval(active_neurons_str))
 
             try:
                 tmp_net_center_idx = next(
@@ -2843,6 +2839,8 @@ class CxSystem:
             time_name = "GEN_TI"
             sg_name = "GEN"
 
+            # Create persistent namespace
+            exec_namespace = locals().copy()
 
             # If spike times unit is Hz, add period keyword for repetitive firing starting at t=half the period.
             if spike_times_unit == "Hz":
@@ -2857,29 +2855,26 @@ class CxSystem:
                 else:
                     period = period_init
                 period_str = "GEN_PE = %s*second" % (period)
-                shared_namespace.update(locals())
                 # NUMBER 1 pt 1
                 exec(
-                    period_str, shared_namespace
+                    period_str, globals(), exec_namespace
                 )  # running the syntax for period of the input neuron group
                 # times give the start of first spike, which must be less than the period, thus the 0.5/[period in Hz] below
                 times_str = "GEN_TI = b2.repeat(0.5/%s,%s)*%s" % (
-                    spike_times_ / eval(spike_times_unit, shared_namespace),
+                    spike_times_ / eval(spike_times_unit),
                     number_of_active_neurons,
                     "second",
                 )
             else:
-                shared_namespace.update(locals())
                 assert b2.units.is_dimensionless(
-                    eval(spike_times_unit, shared_namespace) / second
+                    eval(spike_times_unit) / second
                 ), "Unknown unit, should be second, ms etc, or Hz"
                 period_str = "GEN_PE = 0*second"  # default
-                shared_namespace.update(locals())
                 # NUMBER 1 pt 2
                 exec(
-                    period_str, shared_namespace
+                    period_str, globals(), exec_namespace
                 )  # running the syntax for period of the input neuron group
-                spike_times_array_nodim = spike_times_ / eval(spike_times_unit, shared_namespace)
+                spike_times_array_nodim = spike_times_ / eval(spike_times_unit)
                 array_string = np.array2string(
                     spike_times_array_nodim, separator=",", max_line_width=10000
                 )
@@ -2889,8 +2884,7 @@ class CxSystem:
                     spike_times_unit,
                 )
             # NUMBER 2
-            shared_namespace.update(locals())
-            exec(times_str, shared_namespace)  # running the string
+            exec(times_str, globals(), exec_namespace)  # running the string
             # containing the syntax for time indices in the input neuron group.
             spikes_str = "GEN_SP=b2.tile(%s,%d)" % (
                 active_neurons_str,
@@ -2903,18 +2897,18 @@ class CxSystem:
             print(f"DEBUG: spikes_str = '{spikes_str}'")
 
             # NUMBER 3
-            exec(spikes_str, shared_namespace)  # running the string
+            exec(spikes_str, globals(), exec_namespace)  # running the string
             sg_str = (
                 "GEN = b2.SpikeGeneratorGroup(%s, GEN_SP, GEN_TI, period=GEN_PE)"
                 % number_of_neurons
             )
             # NUMBER 4
-            exec(sg_str, shared_namespace)  # running the string
+            exec(sg_str, globals(), exec_namespace)  # running the string
             # containing the syntax for creating the b2.SpikeGeneratorGroup() based on the input .mat file.
 
-            setattr(self.main_module, sg_name, eval(sg_name, shared_namespace))
+            setattr(self.main_module, sg_name, eval(sg_name, globals(), exec_namespace))
             try:
-                setattr(self.Cxmodule, sg_name, eval(sg_name, shared_namespace))
+                setattr(self.Cxmodule, sg_name, eval(sg_name, globals(), exec_namespace))
             except AttributeError:
                 pass
 
@@ -2937,19 +2931,21 @@ class CxSystem:
             eq = """'''emit_spike : 1
                             x : meter
                             y : meter'''"""
-            shared_namespace.update(locals())
             exec(
                 "%s=%s" % (_dyn_neuronnumber_name, number_of_neurons),
-                shared_namespace
+                globals(),
+                locals(),
             )
-            exec("%s=%s" % (_dyn_neuron_eq_name, eq), shared_namespace)
+            exec("%s=%s" % (_dyn_neuron_eq_name, eq), locals(), globals())
             exec(
                 "%s=%s" % (_dyn_neuron_thres_name, "'emit_spike>=1'"),
-                shared_namespace
+                globals(),
+                locals(),
             )
             exec(
                 "%s=%s" % (_dyn_neuron_reset_name, "'emit_spike=0'"),
-                shared_namespace
+                globals(),
+                locals(),
             )
             exec(
                 "%s= b2.NeuronGroup(%s, model=%s, method='%s',threshold=%s, "
@@ -2962,7 +2958,8 @@ class CxSystem:
                     _dyn_neuron_thres_name,
                     _dyn_neuron_reset_name,
                 ),
-                shared_namespace
+                globals(),
+                locals(),
             )
             if hasattr(self, "imported_connections"):  # load the positions if available
                 # in case the NG index are different. for example a MC_L2 neuron might have had
@@ -2994,7 +2991,7 @@ class CxSystem:
                     int(number_of_neurons),
                     "VPM",
                     "0",
-                    eval(radius, shared_namespace),
+                    eval(radius),
                     self.min_distance,
                     self.physio_config_df,
                     network_center=net_center,
@@ -3005,7 +3002,6 @@ class CxSystem:
                 self.customized_neurons_list[current_idx]["w_positions"] = (
                     vpm_customized_neuron.output_neuron["w_positions"]
                 )
-            shared_namespace.update(locals())
             # setting the position of the neurons:
             exec(
                 "%s.x=b2.real(self.customized_neurons_list[%d]["
@@ -3017,7 +3013,8 @@ class CxSystem:
                     _dyn_neurongroup_name,
                     current_idx,
                 ),
-                shared_namespace
+                globals(),
+                locals(),
             )
             # saving the positions :
             self.workspace.results["positions_all"]["z_coord"][
@@ -3027,33 +3024,29 @@ class CxSystem:
                 _dyn_neurongroup_name
             ] = self.customized_neurons_list[current_idx]["w_positions"]
             self.workspace.results["number_of_neurons"][_dyn_neurongroup_name] = eval(
-                _dyn_neuronnumber_name, shared_namespace
+                _dyn_neuronnumber_name
             )
             sg_syn_name = "SGEN_Syn"  # variable name for the Synapses() object
             # that connects b2.SpikeGeneratorGroup() and relay neurons.
-            shared_namespace.update(locals())
             exec(
                 "%s = b2.Synapses(GEN, %s, on_pre='emit_spike+=1')"
                 % (sg_syn_name, _dyn_neurongroup_name),
-                shared_namespace
+                globals(),
+                locals(),
             )
             # connecting the b2.SpikeGeneratorGroup() and relay group.
-            eval(sg_syn_name, shared_namespace).connect(j="i")
+            eval(sg_syn_name).connect(j="i")
             setattr(
-                self.main_module, _dyn_neurongroup_name, eval(_dyn_neurongroup_name, shared_namespace)
+                self.main_module, _dyn_neurongroup_name, eval(_dyn_neurongroup_name)
             )
-            setattr(self.main_module, sg_syn_name, eval(sg_syn_name, shared_namespace))
+            setattr(self.main_module, sg_syn_name, eval(sg_syn_name))
             try:
                 setattr(
-                    self.Cxmodule, _dyn_neurongroup_name, eval(_dyn_neurongroup_name, shared_namespace)
+                    self.Cxmodule, _dyn_neurongroup_name, eval(_dyn_neurongroup_name)
                 )
-                setattr(self.Cxmodule, sg_syn_name, eval(sg_syn_name, shared_namespace))
+                setattr(self.Cxmodule, sg_syn_name, eval(sg_syn_name))
             except AttributeError:
                 pass
-
-            globals().update({k: v for k, v in shared_namespace.items() 
-                      if k.startswith(('NG', 'SpMon', 'StMon', 'GEN', 'S'))})
-                      
             # taking care of the monitors:
             self.monitors(
                 mons.split(" "), _dyn_neurongroup_name
