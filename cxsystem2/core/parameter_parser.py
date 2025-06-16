@@ -15,6 +15,12 @@ import numpy as np
 import pandas as pd
 from brian2.units import *
 from numpy import array, nan
+import builtins
+
+# Make Brian2 units available globally
+for name in dir(__import__('brian2.units', fromlist=['*'])):
+    if not name.startswith('_'):
+        setattr(builtins, name, getattr(__import__('brian2.units', fromlist=['*']), name))
 
 
 class SynapseParser:
