@@ -954,6 +954,7 @@ class CxSystem:
             "neuron_subtype",
         ]
         _obligatory_params = [0, 1, 2, 3]
+        # print(self.current_values_s)
         assert len(self.current_values_s) >= len(_all_columns), (
             " -  One or more of of the columns for NeuronGroups definition \
         is missing. Following obligatory columns should be defined:\n%s\n "
@@ -2572,12 +2573,13 @@ class CxSystem:
                         )
                         .as_posix()
                     )
+                spk_generator_name = "spk_generator_" + str(self.video_input_idx)
                 spk_generator = b2.SpikeGeneratorGroup(
                     thread_number_of_neurons, spk_generator_sp, spk_generator_ti
                 )
-                setattr(self.main_module, "spk_generator", spk_generator)
+                setattr(self.main_module, spk_generator_name, spk_generator)
                 try:
-                    setattr(self.Cxmodule, "spk_generator", spk_generator)
+                    setattr(self.Cxmodule, spk_generator_name, spk_generator)
                 except AttributeError:
                     pass
                 # Generated variable name for the NeuronGroup, Neuron_number,Equation, Threshold, Reset
@@ -2679,7 +2681,7 @@ class CxSystem:
                     thread_nn_name
                 )
                 thread_sg_syn_name = (
-                    "SGEN_Syn"  # variable name for the Synapses() object
+                    "SGEN_Syn_" + str(self.video_input_idx)  # variable name for the Synapses() object
                 )
                 # that connects b2.SpikeGeneratorGroup() and relay neurons.
                 exec(
@@ -2838,9 +2840,9 @@ class CxSystem:
                 " -  Creating an input based on the central %s neurons "
                 "..." % number_of_neurons
             )
-            spikes_name = "GEN_SP"  # Not used elsewhere in this namespace?
-            time_name = "GEN_TI"
-            sg_name = "GEN"
+            spikes_name = "GEN_SP_" + str(current_idx) # Not used elsewhere in this namespace?
+            time_name = "GEN_TI_" + str(current_idx)
+            sg_name = "GEN_" + str(current_idx)
             # If spike times unit is Hz, add period keyword for repetitive firing starting at t=half the period.
             if spike_times_unit == "Hz":
                 assert (
@@ -2858,7 +2860,8 @@ class CxSystem:
                     period_str, globals(), locals()
                 )  # running the syntax for period of the input neuron group
                 # times give the start of first spike, which must be less than the period, thus the 0.5/[period in Hz] below
-                times_str = "GEN_TI = b2.repeat(0.5/%s,%s)*%s" % (
+                times_str = "%s = b2.repeat(0.5/%s,%s)*%s" % (
+                    time_name,
                     spike_times_ / eval(spike_times_unit),
                     number_of_active_neurons,
                     "second",
@@ -2875,21 +2878,23 @@ class CxSystem:
                 array_string = np.array2string(
                     spike_times_array_nodim, separator=",", max_line_width=10000
                 )
-                times_str = "GEN_TI = b2.repeat(%s,%s)*%s" % (
+                times_str = "%s = b2.repeat(%s,%s)*%s" % (
+                    time_name,
                     array_string,
                     number_of_active_neurons,
                     spike_times_unit,
                 )
             exec(times_str, globals(), locals())  # running the string
             # containing the syntax for time indices in the input neuron group.
-            spikes_str = "GEN_SP=b2.tile(%s,%d)" % (
+            spikes_str = "%s=b2.tile(%s,%d)" % (
+                spikes_name,
                 active_neurons_str,
                 b2.asarray(spike_times_list).size,
             )  # len(spike_times_) should be 1 if unit is Hz
             exec(spikes_str, globals(), locals())  # running the string
             sg_str = (
-                "GEN = b2.SpikeGeneratorGroup(%s, GEN_SP, GEN_TI, period=GEN_PE)"
-                % number_of_neurons
+                "%s = b2.SpikeGeneratorGroup(%s, %s, %s, period=GEN_PE)"
+                % (sg_name, number_of_neurons, spikes_name, time_name)
             )
             exec(sg_str, globals(), locals())  # running the string
             # containing the syntax for creating the b2.SpikeGeneratorGroup() based on the input .mat file.
@@ -3014,11 +3019,11 @@ class CxSystem:
             self.workspace.results["number_of_neurons"][_dyn_neurongroup_name] = eval(
                 _dyn_neuronnumber_name
             )
-            sg_syn_name = "SGEN_Syn"  # variable name for the Synapses() object
+            sg_syn_name = "SGEN_Syn_" + str(current_idx) # variable name for the Synapses() object
             # that connects b2.SpikeGeneratorGroup() and relay neurons.
             exec(
-                "%s = b2.Synapses(GEN, %s, on_pre='emit_spike+=1')"
-                % (sg_syn_name, _dyn_neurongroup_name),
+                "%s = b2.Synapses(%s, %s, on_pre='emit_spike+=1')"
+                % (sg_syn_name, sg_name, _dyn_neurongroup_name),
                 globals(),
                 locals(),
             )
@@ -3056,12 +3061,13 @@ class CxSystem:
             spk_generator_sp = spikes_data["spikes_0"][0]
             spk_generator_ti = spikes_data["spikes_0"][1]
             number_of_neurons = len(spikes_data["w_coord"])
+            spk_generator_name = "spk_generator_" + str(self.spike_input_group_idx)
             spk_generator = b2.SpikeGeneratorGroup(
                 number_of_neurons, spk_generator_sp, spk_generator_ti
             )
-            setattr(self.main_module, "spk_generator", spk_generator)
+            setattr(self.main_module, spk_generator_name, spk_generator)
             try:
-                setattr(self.Cxmodule, "spk_generator", spk_generator)
+                setattr(self.Cxmodule, spk_generator_name, spk_generator)
             except AttributeError:
                 pass
             # Generated variable name for the NeuronGroup, Neuron_number,Equation, Threshold, Reset
@@ -3151,7 +3157,7 @@ class CxSystem:
                 self.customized_neurons_list[self.spike_input_group_idx]["w_positions"]
             )
             self.workspace.results["number_of_neurons"][ng_name] = eval(nn_name)
-            sg_syn_name = "SGEN_Syn"  # variable name for the Synapses() object
+            sg_syn_name = "SGEN_Syn_" + str(self.spike_input_group_idx)  # variable name for the Synapses() object
             # that connects b2.SpikeGeneratorGroup() and relay neurons.
             exec(
                 "%s = b2.Synapses(spk_generator, %s, on_pre='emit_spike+=1')"
